@@ -350,6 +350,29 @@ Prefer objective checks where possible, then use visual review as the final pass
 
 If screenshot comparison is not available in the current environment, explicitly say the version passed local checks only, and ask for or wait for the user's next crop before treating it as accepted.
 
+### 7.2 Local SVG Render Fallback
+
+Before or after pasting to Figma, render the generated SVG locally so the first
+comparison can catch obvious scale, typography, crop, and clipping problems.
+Prefer Playwright or Chrome when it is already working, because browser
+rendering is closer to what Figma Web will import. If that path times out or
+returns a blank image, do not skip the evidence step on macOS; use QuickLook as
+a deterministic fallback:
+
+```bash
+qlmanage -t -s 1008 -o path/to/renders path/to/restore.svg >/tmp/ql.out 2>/tmp/ql.err
+mv path/to/renders/restore.svg.png path/to/renders/restore_render_light.png
+```
+
+When using the fallback:
+
+- Save the fallback render in `renders/` with a versioned name.
+- Add the render path to `restore_manifest.json`.
+- Mark the failure mode as `tooling-gap` only if no script/check currently
+  handles the fallback automatically.
+- Continue the comparison loop using the fallback PNG; do not report "no local
+  render comparison" merely because Playwright failed.
+
 ### 7.5 Batch Test Workflow
 
 When testing the skill on multiple screenshots:
