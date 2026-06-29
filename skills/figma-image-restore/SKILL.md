@@ -356,8 +356,23 @@ Before or after pasting to Figma, render the generated SVG locally so the first
 comparison can catch obvious scale, typography, crop, and clipping problems.
 Prefer Playwright or Chrome when it is already working, because browser
 rendering is closer to what Figma Web will import. If that path times out or
-returns a blank image, do not skip the evidence step on macOS; use QuickLook as
-a deterministic fallback:
+returns a blank image, do not skip the evidence step. First try the bundled
+Node runtime with `sharp`, which preserves tall mobile screenshots:
+
+```bash
+NODE_PATH="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules" \
+"$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node" - <<'NODE'
+const sharp = require("sharp");
+const input = "path/to/restore.svg";
+const output = "path/to/renders/restore_full.png";
+sharp(input, { density: 72, unlimited: true }).png().toFile(output)
+  .then(info => console.log(info))
+  .catch(error => { console.error(error); process.exit(1); });
+NODE
+```
+
+On macOS, QuickLook can still be used as a last-resort thumbnail fallback, but
+verify the output dimensions because it may crop tall SVGs to a square:
 
 ```bash
 qlmanage -t -s 1008 -o path/to/renders path/to/restore.svg >/tmp/ql.out 2>/tmp/ql.err
@@ -367,6 +382,8 @@ mv path/to/renders/restore.svg.png path/to/renders/restore_render_light.png
 When using the fallback:
 
 - Save the fallback render in `renders/` with a versioned name.
+- Verify `file render.png` or image metadata reports the expected source
+  dimensions, such as `1008 x 1792` for a full mobile screenshot.
 - Add the render path to `restore_manifest.json`.
 - Mark the failure mode as `tooling-gap` only if no script/check currently
   handles the fallback automatically.
