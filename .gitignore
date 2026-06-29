@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+*.pyc
+figma_restore_assets*/
+figma_debug_crops*/
+*.tmp
