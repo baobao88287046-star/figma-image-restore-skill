@@ -59,6 +59,28 @@ If the user provides feedback screenshots, treat them as targeted diff examples.
 - Card/background/rounding mismatch.
 - Actual Figma-rendered overflow that was not visible in the generated SVG.
 
+## Run Directory and Evidence Pack
+
+For any non-trivial restore or batch test, create a run directory before drawing:
+
+```bash
+python3 ~/.codex/skills/figma-image-restore/scripts/init_restore_run.py path/to/source.png --outdir figma_restore_runs
+```
+
+Use the generated `restore_manifest.json` as the work ledger:
+
+- Put source reference crops in `crops/`.
+- Put extracted/upscaled bitmap assets in `assets/`.
+- Put local SVG/PNG renders in `renders/`.
+- Put Figma-rendered screenshots in `figma-screenshots/`.
+- Put side-by-side source/render/user-feedback comparisons in `comparisons/`.
+- Append each pasted Figma version to the manifest with version name, local SVG
+  path, Figma node URL, X/Y position, what changed, and remaining issues.
+
+Do not scatter one-off crops in unrelated folders during a repeatable test. If
+the user wants to compare several images, create one run directory per source
+image and summarize pass/fail using those manifests.
+
 ## Restoration Strategy
 
 ### 1. Analyze and Crop
@@ -327,6 +349,27 @@ For pixel-sensitive restoration, add a screenshot check after every Figma paste:
 Prefer objective checks where possible, then use visual review as the final pass. Do not claim a version is final if it has only been generated locally and not pasted/rendered in Figma.
 
 If screenshot comparison is not available in the current environment, explicitly say the version passed local checks only, and ask for or wait for the user's next crop before treating it as accepted.
+
+### 7.5 Batch Test Workflow
+
+When testing the skill on multiple screenshots:
+
+1. Create a separate run directory for each source image.
+2. Produce a first-pass SVG using the same workflow and naming pattern.
+3. For each image, save at least three comparison crops:
+   - global thumbnail comparison,
+   - the densest text/list/card region,
+   - the smallest icon/control region.
+4. Mark every issue as one of:
+   - `source-understood-wrong`: OCR/text/icon/region identification was wrong.
+   - `layout-grid-wrong`: parent container, clipping, spacing, or baseline grid was wrong.
+   - `asset-crop-wrong`: bitmap crop included extra pixels or lost important pixels.
+   - `figma-render-drift`: local SVG looked acceptable but pasted Figma differed.
+   - `tooling-gap`: no script/check currently catches this class of error.
+5. Patch the skill only for repeated or workflow-level failures. Keep one-off
+   coordinate fixes in the specific SVG version rather than overfitting the skill.
+6. After 3 or more test images, report a compact scorecard: images tested,
+   accepted regions, repeated failure modes, and the next skill improvement.
 
 ## External Tool Baseline
 

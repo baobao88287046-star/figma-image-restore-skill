@@ -57,10 +57,13 @@ Use $figma-image-restore to compare these problem regions and paste a new versio
 skills/figma-image-restore/
 ├── SKILL.md
 ├── agents/openai.yaml
+├── scripts/init_restore_run.py
 └── scripts/check_svg_text_bounds.py
 ```
 
 `check_svg_text_bounds.py` exits with code 1 when it finds possible overflow candidates. Some edge-preview carousel text may be intentionally clipped; the skill instructs Codex to treat those as explicit exceptions only after visual comparison.
+
+`init_restore_run.py` creates a structured evidence folder and manifest for each source image, which is useful when testing several screenshots and comparing versions.
 
 ## Notes
 
