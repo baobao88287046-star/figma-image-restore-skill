@@ -31,6 +31,10 @@ def main() -> int:
     parser.add_argument("--version")
     parser.add_argument("--require-figma", action="store_true")
     parser.add_argument("--require-figma-screenshot", action="store_true")
+    parser.add_argument("--require-layout-report", action="store_true")
+    parser.add_argument("--require-ocr-report", action="store_true")
+    parser.add_argument("--require-icon-report", action="store_true")
+    parser.add_argument("--require-module-report", action="store_true")
     parser.add_argument("--fail-on-open-issues", action="store_true")
     parser.add_argument("--allow-remaining-issues", action="store_true")
     args = parser.parse_args()
@@ -70,6 +74,26 @@ def main() -> int:
                 issues.append(f"Comparison missing: {path}")
         if not version.get("comparison_paths"):
             issues.append("No comparison_paths recorded for version")
+
+        if args.require_layout_report:
+            layout_report = Path(version.get("layout_report_path") or "")
+            if not layout_report.exists():
+                issues.append(f"Layout report is required but missing: {layout_report}")
+        if args.require_ocr_report:
+            ocr_report = Path(version.get("ocr_report_path") or "")
+            if not ocr_report.exists():
+                issues.append(f"OCR report is required but missing: {ocr_report}")
+        if args.require_icon_report:
+            icon_reports = version.get("icon_report_paths") or []
+            if not icon_reports:
+                issues.append("Icon report is required but missing")
+            for path in icon_reports:
+                if not Path(path).exists():
+                    issues.append(f"Icon report missing: {path}")
+        if args.require_module_report:
+            module_report = Path(version.get("module_report_path") or "")
+            if not module_report.exists():
+                issues.append(f"Repeated module report is required but missing: {module_report}")
 
         if args.require_figma and not version.get("figma_node_url"):
             issues.append("Figma node URL is required but missing")

@@ -60,7 +60,11 @@ skills/figma-image-restore/
 ├── SKILL.md
 ├── agents/openai.yaml
 ├── scripts/compare_regions.py
+├── scripts/compare_icon_strip.py
+├── scripts/check_repeated_modules.py
+├── scripts/extract_layout.py
 ├── scripts/init_restore_run.py
+├── scripts/ocr_text_check.py
 ├── scripts/render_svg_full.py
 ├── scripts/run_restore_gates.py
 ├── scripts/check_svg_text_bounds.py
@@ -75,9 +79,17 @@ skills/figma-image-restore/
 
 `compare_regions.py` compares source and rendered screenshots globally and by named high-risk regions, writes a JSON report, and creates side-by-side contact sheets.
 
+`extract_layout.py` detects coarse source layout boxes and writes an annotated overlay to help reconstruct modules from measured positions.
+
+`ocr_text_check.py` compares OCR text from the source screenshot with SVG text nodes when Tesseract is available.
+
+`compare_icon_strip.py` performs targeted edge/mask comparison for small icon strips so icon mismatches do not disappear inside global similarity scores.
+
+`check_repeated_modules.py` verifies repeated cards/list rows share the same internal grid, typography, and image insets, including full logical boxes for partially clipped preview cards.
+
 `verify_manifest.py` checks that a restore run has the required evidence paths, source-sized renders, acceptance flags, and Figma node metadata before a pass is treated as ready.
 
-`run_restore_gates.py` is the preferred one-command QA harness. It runs full SVG rendering, text-bound checks, region comparison, writes comparison artifacts, and updates the manifest for a named version.
+`run_restore_gates.py` is the preferred one-command QA harness. It runs full SVG rendering, text-bound checks, region comparison, optional layout/OCR/icon/module checks, writes comparison artifacts, and updates the manifest for a named version.
 
 ## Notes
 

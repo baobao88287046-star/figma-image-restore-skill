@@ -101,11 +101,19 @@ After generating each SVG version:
      --screen-height 1792 \
      --region hero:0,40,1008,485 \
      --region dense_cards:0,520,1008,605 \
-     --region nav:0,1120,1008,672
+     --region nav:0,1120,1008,672 \
+     --extract-layout \
+     --ocr \
+     --icon-region bottom_nav:0,1600,1008,192 \
+     --module-card hot1:56,120,238,506 \
+     --module-card hot2:318,120,238,506 \
+     --partial-module-card hot_edge:842,120,238,506
    ```
 
    This renders the SVG, checks text bounds, compares source/render regions,
-   writes contact sheets and a JSON comparison report, and updates the manifest.
+   optionally extracts layout, optionally checks OCR text, optionally compares
+   icon strips, optionally checks repeated module alignment, writes contact
+   sheets and JSON reports, and updates the manifest.
 
 2. If a gate fails, inspect the generated comparison report and contact sheets,
    then fix the SVG and create a new version.
@@ -125,6 +133,10 @@ Use the individual scripts directly only when debugging one gate:
 - `render_svg_full.py`: full-size SVG rendering.
 - `check_svg_text_bounds.py`: conservative text overflow check.
 - `compare_regions.py`: source/render visual scoring and contact sheets.
+- `extract_layout.py`: source screenshot layout boxes and annotated overlay.
+- `ocr_text_check.py`: source OCR vs SVG text consistency check.
+- `compare_icon_strip.py`: targeted icon/control silhouette comparison.
+- `check_repeated_modules.py`: sibling card/list alignment and typography drift check.
 - `verify_manifest.py`: final evidence and metadata gate.
 
 If any gate fails, fix the SVG and create a new version. Do not paste or report
@@ -283,6 +295,10 @@ Before accepting repeated UI modules, run a sibling-invariant gate:
   alignment even when the bitmap is fuzzy.
 - Record the metric table or a short pass/fail summary before pasting. A visual
   screenshot check is the final check, not the only check.
+- Use `check_repeated_modules.py`, or the `run_restore_gates.py --module-card`
+  wrapper, whenever repeated card/list alignment is part of the acceptance
+  criteria. For partially visible carousel cards, pass the full logical card box
+  with `--partial-module-card`; do not pass only the visible fragment.
 
 ### 5. Image Quality
 
@@ -455,7 +471,36 @@ When the score passes but the visual still looks wrong, record the issue type
 as `tooling-gap` and add a targeted region for the next pass. This is how the
 skill improves instead of silently relying on taste.
 
-### 7.4 Manifest Verification Gate
+### 7.4 Layout, OCR, Icon, and Module Gates
+
+Use these gates when the source contains dense repeated modules, text that must
+not be misread, or small icons whose exact silhouette matters:
+
+- `--extract-layout` creates a coarse layout JSON and overlay from the source
+  screenshot. Use it before hand-placing modules so card/media/text/icon boxes
+  are based on detected evidence rather than memory.
+- `--ocr` runs `ocr_text_check.py` when Tesseract is available. Treat OCR
+  failures as review candidates by default because stylized low-contrast text
+  can be missed. Use `--require-ocr-pass` only when the OCR output is known to
+  be reliable for the screenshot.
+- `--icon-region name:x,y,w,h` runs a targeted edge/mask comparison for icon
+  strips. Use it for bottom navigation, order-state icons, toolbar icons, and
+  any user-reported icon mismatch. The icon gate checks edge/mask difference
+  and contour-count drift so a visually plausible but structurally different
+  icon can still fail.
+- `--module-card name:x,y,w,h` and
+  `--partial-module-card name:x,y,w,h` run repeated-module invariant checks.
+  Use them for rental cards, list rows, carousel cards, and any area where
+  titles/prices/helpers/images should share a grid. The partial-card box should
+  be the full logical card, even if only part of it is visible in the app
+  screenshot.
+
+For OCR-heavy Chinese screenshots, prefer `--ocr-lang chi_sim+eng` unless the
+source is traditional Chinese or another language. If Tesseract is not
+available, the OCR script records a skipped report rather than blocking the
+whole restore.
+
+### 7.5 Manifest Verification Gate
 
 Run `verify_manifest.py` before reporting a version as ready. At minimum it
 should confirm:
@@ -470,7 +515,7 @@ should confirm:
 Use `--allow-remaining-issues` only when the final answer clearly says what
 still needs human review.
 
-### 7.5 Batch Test Workflow
+### 7.6 Batch Test Workflow
 
 When testing the skill on multiple screenshots:
 
