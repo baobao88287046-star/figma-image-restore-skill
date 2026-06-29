@@ -1,0 +1,20 @@
+{
+  "skill_name": "figma-image-restore",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Restore a tall mobile app screenshot into an existing Figma Web file. The result should be pasted as a versioned frame beside prior versions and include local full-height render evidence.",
+      "expected_output": "A versioned SVG/Figma frame, full-height PNG render matching source dimensions, source/render comparison contact sheets, and a manifest that passes verify_manifest.py."
+    },
+    {
+      "id": 2,
+      "prompt": "The pasted Figma reconstruction has edge carousel cards with text alignment drift and cropped product images. Produce a corrected version and prove the repeated-card grid is consistent.",
+      "expected_output": "A new version with fixed repeated-card padding/baselines, region comparison crops for the problematic card area, and a manifest entry explaining remaining issues."
+    },
+    {
+      "id": 3,
+      "prompt": "Small SVG icons in the restored Figma file do not match the source screenshot. Improve icon fidelity and run a targeted comparison for the icon strip.",
+      "expected_output": "Path-based icon revisions, source/render icon-strip contact sheets, and no generic placeholder icons in the final SVG."
+    }
+  ]
+}

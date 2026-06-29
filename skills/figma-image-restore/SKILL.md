@@ -81,6 +81,56 @@ Do not scatter one-off crops in unrelated folders during a repeatable test. If
 the user wants to compare several images, create one run directory per source
 image and summarize pass/fail using those manifests.
 
+## Required QA Gates
+
+For any high-fidelity restore, treat the scripts in `scripts/` as gates, not
+optional helpers. The model can still make design judgments, but the workflow
+should fail loudly when evidence is missing.
+
+After generating each SVG version:
+
+1. Run the standard local gates with one command:
+
+   ```bash
+   python3 ~/.codex/skills/figma-image-restore/scripts/run_restore_gates.py \
+     --source path/to/source.png \
+     --svg path/to/restore.svg \
+     --manifest path/to/restore_manifest.json \
+     --version v1 \
+     --screen-width 1008 \
+     --screen-height 1792 \
+     --region hero:0,40,1008,485 \
+     --region dense_cards:0,520,1008,605 \
+     --region nav:0,1120,1008,672
+   ```
+
+   This renders the SVG, checks text bounds, compares source/render regions,
+   writes contact sheets and a JSON comparison report, and updates the manifest.
+
+2. If a gate fails, inspect the generated comparison report and contact sheets,
+   then fix the SVG and create a new version.
+
+3. After pasting to Figma, add the selected node URL and position to the
+   manifest, then verify the pasted version:
+
+   ```bash
+   python3 ~/.codex/skills/figma-image-restore/scripts/verify_manifest.py \
+     path/to/restore_manifest.json \
+     --version v1 \
+     --require-figma
+   ```
+
+Use the individual scripts directly only when debugging one gate:
+
+- `render_svg_full.py`: full-size SVG rendering.
+- `check_svg_text_bounds.py`: conservative text overflow check.
+- `compare_regions.py`: source/render visual scoring and contact sheets.
+- `verify_manifest.py`: final evidence and metadata gate.
+
+If any gate fails, fix the SVG and create a new version. Do not paste or report
+the failed version as accepted unless the user explicitly asks to inspect a
+known-failing draft.
+
 ## Restoration Strategy
 
 ### 1. Analyze and Crop
@@ -127,7 +177,7 @@ pbcopy < path/to/restore.svg
 
 Then open the Figma Web file and paste with `Cmd+V`.
 
-Before pasting, run deterministic local checks where possible:
+Before pasting, run deterministic local checks:
 
 ```bash
 python3 ~/.codex/skills/figma-image-restore/scripts/check_svg_text_bounds.py path/to/restore.svg --screen-width 512 --safe-margin 20
@@ -356,19 +406,16 @@ Before or after pasting to Figma, render the generated SVG locally so the first
 comparison can catch obvious scale, typography, crop, and clipping problems.
 Prefer Playwright or Chrome when it is already working, because browser
 rendering is closer to what Figma Web will import. If that path times out or
-returns a blank image, do not skip the evidence step. First try the bundled
-Node runtime with `sharp`, which preserves tall mobile screenshots:
+returns a blank image, do not skip the evidence step. Use the bundled render
+script, which first tries the Codex Node runtime with `sharp` because it
+preserves tall mobile screenshots:
 
 ```bash
-NODE_PATH="$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules" \
-"$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node" - <<'NODE'
-const sharp = require("sharp");
-const input = "path/to/restore.svg";
-const output = "path/to/renders/restore_full.png";
-sharp(input, { density: 72, unlimited: true }).png().toFile(output)
-  .then(info => console.log(info))
-  .catch(error => { console.error(error); process.exit(1); });
-NODE
+python3 ~/.codex/skills/figma-image-restore/scripts/render_svg_full.py \
+  path/to/restore.svg \
+  --out path/to/renders/restore_full.png \
+  --expected-width 1008 \
+  --expected-height 1792
 ```
 
 On macOS, QuickLook can still be used as a last-resort thumbnail fallback, but
@@ -389,6 +436,39 @@ When using the fallback:
   handles the fallback automatically.
 - Continue the comparison loop using the fallback PNG; do not report "no local
   render comparison" merely because Playwright failed.
+
+### 7.3 Region Comparison Gate
+
+Use `compare_regions.py` to make the comparison loop repeatable. Start with
+three regions for mobile app screens:
+
+- `hero`: first major banner or header.
+- `dense_cards`: the densest repeated card/list module.
+- `nav`: bottom tabs, timeline, or small icon-heavy strip.
+
+Tune the region boxes to the source image; do not reuse stale boxes from a
+different screenshot. Save the generated report JSON and contact sheets in
+`comparisons/`, then add their paths to the manifest.
+
+The score is intentionally a coarse gate, not a promise of pixel perfection.
+When the score passes but the visual still looks wrong, record the issue type
+as `tooling-gap` and add a targeted region for the next pass. This is how the
+skill improves instead of silently relying on taste.
+
+### 7.4 Manifest Verification Gate
+
+Run `verify_manifest.py` before reporting a version as ready. At minimum it
+should confirm:
+
+- The latest version has an SVG, full-size render, and comparison paths.
+- The render dimensions match the source dimensions.
+- `text_bounds_checked`, `source_crops_created`, and `local_render_compared`
+  are true.
+- If the version was pasted to Figma, `figma_node_url` and coordinates are
+  recorded.
+
+Use `--allow-remaining-issues` only when the final answer clearly says what
+still needs human review.
 
 ### 7.5 Batch Test Workflow
 
